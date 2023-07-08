@@ -5,11 +5,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
+            -- final = {
+            --     kind = "ANIMATION",
+            --     model = "va_sitting.nif",
+            --     animGroup = "idle3"
+            -- }
         },
         [9] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -22,11 +22,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
+            -- final = {
+            --     kind = "ANIMATION",
+            --     model = "va_sitting.nif",
+            --     animGroup = "idle3"
+            -- }
         },
         [13] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -39,11 +39,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
+            -- final = {
+            --     kind = "ANIMATION",
+            --     model = "va_sitting.nif",
+            --     animGroup = "idle3"
+            -- }
         },
         [21] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -56,11 +56,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
+            -- final = {
+            --     kind = "ANIMATION",
+            --     model = "va_sitting.nif",
+            --     animGroup = "idle3"
+            -- }
         },
         [3] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -71,10 +71,10 @@ local config = {
     },
     ["karlirah"] = {
         [6]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198
+            cell = "Balmora, Dralosa Athren's House",
+            posX = 300,
+            posY = 75,
+            posZ = 128
         },
         [9] = {
             cell = "Balmora, Karlirah's House",
@@ -83,10 +83,10 @@ local config = {
             posZ = 28
         },
         [11]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198
+            cell = "Balmora, Dralosa Athren's House",
+            posX = 300,
+            posY = 75,
+            posZ = 128
         },
         [13] = {
             cell = "Balmora, Karlirah's House",
@@ -95,10 +95,10 @@ local config = {
             posZ = 28
         },
         [18]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198
+            cell = "Balmora, Dralosa Athren's House",
+            posX = 300,
+            posY = 75,
+            posZ = 128
         },
         [21] = {
             cell = "Balmora, Karlirah's House",
@@ -107,10 +107,10 @@ local config = {
             posZ = 28
         },
         [1]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198
+            cell = "Balmora, Dralosa Athren's House",
+            posX = 300,
+            posY = 75,
+            posZ = 128
         },
         [3] = {
             cell = "Balmora, Karlirah's House",
@@ -126,6 +126,8 @@ local timerId
 local transitions = {}
 local moving = {}
 local finished = {}
+
+local maxRecursionDepth = 4
 local maxDistanceToLocation = 128
 
 local function logMessage(message)
@@ -135,6 +137,10 @@ end
 
 local function getDistance(sPosX, sPosY, sPosZ, rPosX, rPosY, rPosZ)
     return math.sqrt((sPosX - rPosX)^2 + (sPosY - rPosY)^2 + (sPosZ - rPosZ)^2)
+end
+
+local function isExterior(cellDescription)
+    return string.match(cellDescription, patterns.exteriorCell)
 end
 
 local function findCurrentScheduleEntry(refId)
@@ -206,6 +212,32 @@ local function findLoadDoorToCell(cellDescription, otherCellDescription, destX, 
 
         return bestMatch
     end
+end
+
+local function getBorderingCellDescriptions(cellDescription, excludeCells)
+    local cells = {}
+    if isExterior(cellDescription) then
+        local cellX, cellY = unpack(cellDescription:split(", "))
+        tableHelper.insertValues(cells, {(cellX - 1) .. ", " .. (cellY - 1), (cellX) .. ", " .. (cellY - 1), (cellX + 1) .. ", " .. (cellY - 1), (cellX - 1) .. ", " .. (cellY), (cellX + 1) .. ", " .. (cellY), (cellX - 1) .. ", " .. (cellY + 1), (cellX) .. ", " .. (cellY + 1), (cellX + 1) .. ", " .. (cellY + 1)})
+    end
+
+    local cellRecord = dataFilesLoader.getCellRecord(cellDescription)
+    if cellRecord ~= nil then
+        for refNum, reference in pairs(cellRecord.references) do
+            if reference.door_destination_coords ~= nil then
+                if (reference.door_destination_cell and reference.door_destination_cell ~= cellDescription) or (not isExterior(cellDescription) and reference.door_destination_cell == nil) then
+                    local cellSize = 8192
+                    local foundCellDescription = reference.door_destination_cell or ( math.floor(reference.door_destination_coords[1] / cellSize) .. ", " .. math.floor(reference.door_destination_coords[2] / cellSize) )
+                    if not tableHelper.containsValue(excludeCells, foundCellDescription) then
+                        cells[#cells+1] = foundCellDescription
+                    end
+                end
+            end
+        end
+    end
+
+    return cells
+
 end
 
 local function getDoorDestinationCoordinates(cellDescription, refNum)
@@ -293,6 +325,59 @@ local function findDoorMarkerNearestToDoor(cellDescription, refNum) -- cell and 
     end
 end
 
+local function findCellChain(startingCellDescription, finalCellDescription, depth, excludeCells) 
+    if depth == nil then depth = 0 end
+    if depth >= maxRecursionDepth then return nil end
+    if excludeCells == nil then excludeCells = {startingCellDescription} end
+
+    local borderCells = getBorderingCellDescriptions(startingCellDescription, excludeCells)
+
+    if tableHelper.containsValue(borderCells, finalCellDescription) then
+        return {startingCellDescription}
+    else
+        tableHelper.insertValues(excludeCells, borderCells)
+        for _, cellDescription in pairs(borderCells) do
+            logMessage("findCellChain is searching " .. cellDescription .. "...")
+            local cellChain = findCellChain(cellDescription, finalCellDescription, depth+1, excludeCells)
+            if cellChain ~= nil then 
+                
+                cellChain[#cellChain+1] = startingCellDescription -- returns cells in order of furthest to nearest
+                logMessage("findCellChain found transition and is returning " .. tableHelper.getSimplePrintableTable(cellChain))
+                return cellChain
+            end
+        end
+    end
+end
+
+local function findLoadDoorChain(startingCellDescription, finalCellDescription, destX, destY, destZ)
+    local cellChain = findCellChain(startingCellDescription, finalCellDescription)
+    if cellChain == nil then return end
+
+    local loadDoorChain = {}
+    local previousMarkerCoords = {destX, destY, destZ}
+    local previousCellDescription = finalCellDescription
+    for i, cellDescription in ipairs(cellChain) do
+        
+        if not (isExterior(previousCellDescription) and isExterior(cellDescription)) then -- don't find a load door if both cells are exterior; just update previousCellDescription
+            local loadDoor = findLoadDoorToCell(cellDescription, previousCellDescription, previousMarkerCoords[1], previousMarkerCoords[2], previousMarkerCoords[3])
+            if loadDoor == nil then logMessage("findLoadDoorChain has failed to find a load door from " .. cellDescription .. " to " .. previousCellDescription) return end
+
+            local markerCoords = findDoorMarkerNearestToDoor(cellDescription, loadDoor)
+            if markerCoords == nil then logMessage("findLoadDoorChain has failed to find a marker near loadDoor " .. loadDoor .. " in cell " .. cellDescription) return end
+
+            table.insert(loadDoorChain, 1, {cellDescription, loadDoor})
+            previousMarkerCoords = markerCoords
+        end
+
+        previousCellDescription = cellDescription
+    end
+
+    logMessage("findLoadDoorChain has succeeded and is returning " .. tableHelper.getSimplePrintableTable(loadDoorChain))
+
+    return loadDoorChain
+
+end
+
 local function atFinalDestination(cellDescription, refNum, targetTable) -- if an NPC has reached their scheduled destination
     logMessage("atFinalDestination firing for refNum " .. refNum .. " in cell " .. cellDescription)
 
@@ -324,14 +409,14 @@ end
 
 local function atTempDestination(cellDescription, refNum)
     local refId = LoadedCells[cellDescription].data.objectData[refNum].refId
-    if transitions[refId] then
+    if transitions[refId] and transitions[refId][1] then
         if LoadedCells[cellDescription]:GetVisitorCount() > 0 then
             LoadedCells[cellDescription]:SaveActorPositions()
-        else return true
+        else return math.random() > 0.75 -- simulate time taken up by NPC movement when they're not in a cell with a player; random so that you won't get multiple NPCs popping into existence at the same time hopefully
         end
         local objectData = LoadedCells[cellDescription].data.objectData[refNum]
         if objectData.location == nil then return logMessage("atTempDestination aborting to to missing information data") end
-        if getDistance(transitions[refId].posX, transitions[refId].posY, transitions[refId].posZ, objectData.location.posX, objectData.location.posY, objectData.location.posZ) < maxDistanceToLocation then
+        if getDistance(transitions[refId][1].posX, transitions[refId][1].posY, transitions[refId][1].posZ, objectData.location.posX, objectData.location.posY, objectData.location.posZ) < maxDistanceToLocation then
             return true
         end
     end
@@ -598,7 +683,8 @@ local function updateNpc(cellDescription, refNum)
                         logMessage("--updateNpc BP 2a")
                         if atTempDestination(cellDescription, refNum) then -- NPC has paused near load door; should be moved to new cell and AItravel to final destination
                             logMessage("--updateNpc BP 3a")
-                            local newCellDescription = targetTable.cell
+                            local transTable = transitions[refId][1]
+                            local newCellDescription = transTable.destCell
                             local newCell = LoadedCells[newCellDescription]
                             local useTempLoad
                             if newCell == nil then
@@ -606,23 +692,21 @@ local function updateNpc(cellDescription, refNum)
                                 useTempLoad = true
                             end
 
-                            if transitions[refId].openSound then
+                            if transTable.openSound then
                                 for _, pid in ipairs(LoadedCells[cellDescription].visitors) do
-                                    playSoundFromObject(pid, cellDescription, refNum, transitions[refId].openSound)
+                                    playSoundFromObject(pid, cellDescription, refNum, transTable.openSound)
                                 end
                             end
 
-                            moveNpcBetweenCells(cellDescription, refNum, newCellDescription, transitions[refId].destX, transitions[refId].destY, transitions[refId].destZ, transitions[refId].destRotZ)
-                            safelySetActorAI(newCellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, targetTable.posX, targetTable.posY, targetTable.posZ)
+                            moveNpcBetweenCells(cellDescription, refNum, newCellDescription, transTable.destX, transTable.destY, transTable.destZ, transTable.destRotZ)
 
-                            if transitions[refId].openSound then
+                            if transTable.openSound then
                                 for _, pid in ipairs(LoadedCells[newCellDescription].visitors) do
-                                    playSoundFromObject(pid, newCellDescription, refNum, transitions[refId].closeSound or transitions[refId].openSound)
+                                    playSoundFromObject(pid, newCellDescription, refNum, transTable.closeSound or transTable.openSound)
                                 end
                             end
 
-                            transitions[refId] = nil
-
+                            table.remove(transitions[refId], 1)
                             for i, entry in ipairs(moving) do
                                 if entry[2] == refNum then
                                     moving[i] = nil
@@ -630,82 +714,84 @@ local function updateNpc(cellDescription, refNum)
                             end
                             tableHelper.cleanNils(moving)
 
+
+                            if transitions[refId][1] == nil then
+                                logMessage("--updateNpc BP 6a")
+                                safelySetActorAI(newCellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, targetTable.posX, targetTable.posY, targetTable.posZ)
+                            else
+                                logMessage("--updateNpc BP 6b")
+                                logMessage("transitions[refId] = " .. tableHelper.getSimplePrintableTable(transitions[refId]))
+                                -- add moving status to new cell
+                                tableHelper.insertValueIfMissing(moving, {newCellDescription, refNum})
+                                safelySetActorAI(newCellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, transitions[refId][1].posX, transitions[refId][1].posY, transitions[refId][1].posZ)
+                            end
+
                             if useTempLoad then
                                 logicHandler.UnloadCell(newCellDescription)
                             end
                         else -- If in the same cell, just move to final destination; if not, set temporary destination near load door and move to that; if a load door can't be found, just teleport npc to target
+                            
                             local newCellDescription = targetTable.cell
-                            if LoadedCells[cellDescription]:GetVisitorCount() > 0 then
-                                if transitions[refId] == nil then -- swap this logic wtih the getvisitorcount line
-                                    logMessage("--updateNpc BP 3b")
-                                    if ( string.match(newCellDescription, patterns.exteriorCell) and LoadedCells[cellDescription].isExterior ) or cellDescription == targetTable.cell then
-                                        logicHandler.SetAIForActor(cell, refNum, enumerations.ai.TRAVEL, nil, nil, targetTable.posX, targetTable.posY, targetTable.posZ)
-                                    else -- create a temporary destination oh boy
-                                        -- add automatic teleporting for NPCs in a cell without players in it  
-
-                                        local targetDoorRefNum = findLoadDoorToCell(cellDescription, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ) -- to do: rework recursively to allow travel through multiple cells, returning a list of cellDescriptions and refNums; put below bits in a loop
-                                        if targetDoorRefNum then
-                                            logMessage("--updateNpc BP 4a")
-                                            local targetX, targetY, targetZ = unpack(findDoorMarkerNearestToDoor(cellDescription, targetDoorRefNum))
-                                            local destX, destY, destZ, destRotZ = unpack(getDoorDestinationCoordinates(cellDescription, targetDoorRefNum))
-                                            local openSound, closeSound = unpack(getDoorSound(cellDescription, targetDoorRefNum))
-
-                                            if targetX == nil or destX == nil then
-                                                logMessage("Marker coordinates could not be found!")
-                                                moveNpcBetweenCells(cellDescription, refNum, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
-                                            else
-
-                                                transitions[refId] = {}
-                                                transitions[refId].posX = targetX
-                                                transitions[refId].posY = targetY
-                                                transitions[refId].posZ = targetZ
-                                                transitions[refId].openSound = openSound
-                                                transitions[refId].closeSound = closeSound
-                                                transitions[refId].destX = destX
-                                                transitions[refId].destY = destY
-                                                transitions[refId].destZ = destZ - 40
-                                                transitions[refId].destRotZ = - math.rad(destRotZ)
-
-                                                tableHelper.insertValueIfMissing(moving, {cellDescription, refNum})
-
-                                                logicHandler.SetAIForActor(cell, refNum, enumerations.ai.TRAVEL, nil, nil, targetX, targetY, targetZ)
-                                            end
-                                        
-                                        else -- no valid load door can be found, so just teleport npc to destination
-                                            logMessage("--updateNpc BP 4b")
-                                            moveNpcBetweenCells(cellDescription, refNum, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
-                                        end
-                                    end
-                                end
-                            else -- Here add logic for transitions from a cell without players
+                            
+                            if ( not transitions[refId] ) or #transitions[refId] == 0  then 
+                                logMessage("--updateNpc BP 3b")
                                 if ( string.match(newCellDescription, patterns.exteriorCell) and LoadedCells[cellDescription].isExterior ) or cellDescription == targetTable.cell then
-                                    logMessage("--updateNpc BP 5a")
-                                    local aiData = dataTableBuilder.BuildAIData(nil, nil, enumerations.ai.TRAVEL, targetTable.posX, targetTable.posY, targetTable.posZ, nil, nil, nil)
-
-                                    LoadedCells[newCellDescription].data.objectData[refNum].ai = aiData
-                                    tableHelper.insertValueIfMissing(LoadedCells[newCellDescription].data.packets.ai, refNum)
-                                else
-                                    logMessage("--updateNpc BP 5b")
-                                    local targetDoorRefNum = findLoadDoorToCell(cellDescription, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ) -- also set this up for recursion
-                                    transitions[refId] = nil
-                                    if targetDoorRefNum then
-                                        local destX, destY, destZ, destRotZ = unpack(getDoorDestinationCoordinates(cellDescription, targetDoorRefNum))
-                                        local useTempLoad
-                                        if LoadedCells[newCellDescription] == nil then
-                                            logicHandler.LoadCell(newCellDescription)
-                                            useTempLoad = true
-                                        end
-                                        moveNpcBetweenCells(cellDescription, refNum, newCellDescription, destX, destY, destZ - 40, destRotZ)
-                                        safelySetActorAI(newCellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, targetTable.posX, targetTable.posY, targetTable.posZ)
-                                        if useTempLoad then
-                                            logicHandler.UnloadCell(newCellDescription)
-                                        end
+                                    if LoadedCells[cellDescription]:GetVisitorCount() == 0 then
+                                        cell.data.objectData[refNum].location = {
+                                            posX = targetTable.posX,
+                                            posY = targetTable.posY,
+                                            posZ = targetTable.posZ,
+                                            rotX = 0,
+                                            rotY = 0,
+                                            rotZ = 0
+                                        }
                                     else
+                                        safelySetActorAI(cellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, targetTable.posX, targetTable.posY, targetTable.posZ)
+                                    end
+                                    
+                                else -- create a temporary destination oh boy
+                                    
+                                    local loadDoorChain = findLoadDoorChain(cellDescription, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
+                                    logMessage("loadDoorChain = " .. tableHelper.getSimplePrintableTable(loadDoorChain))
+                                    
+                                    if loadDoorChain then
+                                        transitions[refId] = {}
+                                        logMessage("--updateNpc BP 5")
+                                        for i, loadDoorData in ipairs(loadDoorChain) do
+                                            logMessage("loadDoorData = " .. tableHelper.getSimplePrintableTable(loadDoorData))
+                                            local targetDoorCellDescription = loadDoorData[1]
+                                            local targetDoorRefNum = loadDoorData[2]
+                                        
+                                            logMessage("--updateNpc BP 4a")
+                                            local targetX, targetY, targetZ = unpack(findDoorMarkerNearestToDoor(targetDoorCellDescription, targetDoorRefNum))
+                                            local destX, destY, destZ, destRotZ = unpack(getDoorDestinationCoordinates(targetDoorCellDescription, targetDoorRefNum))
+                                            local openSound, closeSound = unpack(getDoorSound(targetDoorCellDescription, targetDoorRefNum))
+                                            local nextCell = loadDoorChain[i+1] and loadDoorChain[i+1][1] or targetTable.cell
+
+                                            local transTable = {}
+                                            transTable.posX = targetX
+                                            transTable.posY = targetY
+                                            transTable.posZ = targetZ
+                                            transTable.openSound = openSound
+                                            transTable.closeSound = closeSound
+                                            transTable.destCell = nextCell
+                                            transTable.destX = destX
+                                            transTable.destY = destY
+                                            transTable.destZ = destZ - 40
+                                            transTable.destRotZ = - math.rad(destRotZ)
+
+                                            table.insert(transitions[refId], transTable)
+
+                                        end
+
+                                        tableHelper.insertValueIfMissing(moving, {cellDescription, refNum})
+                                        safelySetActorAI(cellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, transitions[refId][1].posX, transitions[refId][1].posY, transitions[refId][1].posZ)
+
+                                    else -- no valid load door can be found, so just teleport npc to destination
+                                        logMessage("--updateNpc BP 4b")
                                         moveNpcBetweenCells(cellDescription, refNum, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
                                     end
                                 end
-
-                                
                             end
                         end
                     else
@@ -715,7 +801,12 @@ local function updateNpc(cellDescription, refNum)
                         end 
                         tableHelper.insertValueIfMissing(finished[targetHour], refId)
 
-                        tableHelper.removeValue(moving, {cellDescription, refNum})
+                        for i, entry in ipairs(moving) do
+                            if entry[2] == refNum then
+                                moving[i] = nil
+                            end
+                        end
+                        transitions[refId] = nil
                         tableHelper.cleanNils(moving)
 
                         if targetTable.final then
@@ -753,7 +844,7 @@ local function updateNpc(cellDescription, refNum)
                                 -- run animation for all players currently in cell, then add a cell change handler to load this stuff for players entering a cell
                                 if LoadedCells[cellDescription]:GetAuthority() then
                                     logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> setHello 0", cellDescription, refNum, true)
-                                    logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> playgroup " .. targetTable.final.animGroup .. " 1", cellDescription, refNum, true)
+                                    logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> playgroup " .. targetTable.final.animGroup .. " 0", cellDescription, refNum, true)
                                 end
 
                             end
@@ -844,26 +935,26 @@ customEventHooks.registerHandler("AotS_OnGameHour", onGameHourHandler)
 
 function NPC_Scheduling_Timer()
     for i, data in ipairs(moving) do
-        if LoadedCells[data[1]] then
+        --if LoadedCells[data[1]] then
             logMessage("updating moving npc " .. data[2] .. " in cell " .. data[1])
             updateNpc(data[1], data[2])
-        end
+        --end
     end
     tes3mp.RestartTimer(timerId, time.seconds(3))
 end
 
 customEventHooks.registerHandler("OnServerPostInit", function()
-
-
-
-
     timerId = tes3mp.CreateTimer("NPC_Scheduling_Timer", time.seconds(3))
     tes3mp.StartTimer(timerId)
 end)
 
 customEventHooks.registerHandler("OnActorDeath", function(eventStatus, pid, cellDescription, actors)
     for uniqueIndex, actor in pairs(actors) do
-        tableHelper.removeValue(moving, {cellDescription, uniqueIndex})
+        for i, entry in ipairs(moving) do
+            if entry[2] == uniqueIndex then
+                moving[i] = nil
+            end
+        end
         tableHelper.cleanNils(moving)
     end
 end)
