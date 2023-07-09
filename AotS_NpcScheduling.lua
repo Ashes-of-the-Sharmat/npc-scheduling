@@ -5,11 +5,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            -- final = {
-            --     kind = "ANIMATION",
-            --     model = "va_sitting.nif",
-            --     animGroup = "idle3"
-            -- }
+            final = {
+                kind = "ANIMATION",
+                model = "va_sitting.nif",
+                animGroup = "idle3"
+            }
         },
         [9] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -22,11 +22,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            -- final = {
-            --     kind = "ANIMATION",
-            --     model = "va_sitting.nif",
-            --     animGroup = "idle3"
-            -- }
+            final = {
+                kind = "ANIMATION",
+                model = "va_sitting.nif",
+                animGroup = "idle3"
+            }
         },
         [13] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -39,11 +39,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            -- final = {
-            --     kind = "ANIMATION",
-            --     model = "va_sitting.nif",
-            --     animGroup = "idle3"
-            -- }
+            final = {
+                kind = "ANIMATION",
+                model = "va_sitting.nif",
+                animGroup = "idle3"
+            }
         },
         [21] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -56,11 +56,11 @@ local config = {
             posX = -18651,
             posY = -14572,
             posZ = 198, 
-            -- final = {
-            --     kind = "ANIMATION",
-            --     model = "va_sitting.nif",
-            --     animGroup = "idle3"
-            -- }
+            final = {
+                kind = "ANIMATION",
+                model = "va_sitting.nif",
+                animGroup = "idle3"
+            }
         },
         [3] = {
             cell = "Balmora, Dralosa Athren's House",
@@ -74,49 +74,57 @@ local config = {
             cell = "Balmora, Dralosa Athren's House",
             posX = 300,
             posY = 75,
-            posZ = 128
+            posZ = 128,
+            move = "RUN"
         },
         [9] = {
             cell = "Balmora, Karlirah's House",
             posX = 215,
             posY = 20,
-            posZ = 28
+            posZ = 28,
+            move = "SNEAK"
         },
         [11]  = {
             cell = "Balmora, Dralosa Athren's House",
             posX = 300,
             posY = 75,
-            posZ = 128
+            posZ = 128,
+            move = "RUN"
         },
         [13] = {
             cell = "Balmora, Karlirah's House",
             posX = 215,
             posY = 20,
-            posZ = 28
+            posZ = 28,
+            move = "SNEAK"
         },
         [18]  = {
             cell = "Balmora, Dralosa Athren's House",
             posX = 300,
             posY = 75,
-            posZ = 128
+            posZ = 128,
+            move = "RUN"
         },
         [21] = {
             cell = "Balmora, Karlirah's House",
             posX = 215,
             posY = 20,
-            posZ = 28
+            posZ = 28,
+            move = "SNEAK"
         },
         [1]  = {
             cell = "Balmora, Dralosa Athren's House",
             posX = 300,
             posY = 75,
-            posZ = 128
+            posZ = 128,
+            move = "RUN"
         },
         [3] = {
             cell = "Balmora, Karlirah's House",
             posX = 215,
             posY = 20,
-            posZ = 28
+            posZ = 28,
+            move = "SNEAK"
         }
     }
 }
@@ -126,6 +134,7 @@ local timerId
 local transitions = {}
 local moving = {}
 local finished = {}
+local special = {}
 
 local maxRecursionDepth = 4
 local maxDistanceToLocation = 128
@@ -412,7 +421,7 @@ local function atTempDestination(cellDescription, refNum)
     if transitions[refId] and transitions[refId][1] then
         if LoadedCells[cellDescription]:GetVisitorCount() > 0 then
             LoadedCells[cellDescription]:SaveActorPositions()
-        else return math.random() > 0.75 -- simulate time taken up by NPC movement when they're not in a cell with a player; random so that you won't get multiple NPCs popping into existence at the same time hopefully
+        else return math.random() > 0.6 -- simulate time taken up by NPC movement when they're not in a cell with a player; random so that you won't get multiple NPCs popping into existence at the same time hopefully
         end
         local objectData = LoadedCells[cellDescription].data.objectData[refNum]
         if objectData.location == nil then return logMessage("atTempDestination aborting to to missing information data") end
@@ -423,24 +432,74 @@ local function atTempDestination(cellDescription, refNum)
     return false
 end
 
-local function applySpecialMovement(cellDescription, uniqueIndex, special)
-    if special and LoadedCells[cellDescription] and LoadedCells[cellDescription].data.objectData[uniqueIndex] then
+local function clearSpecialMovement(cellDescription, uniqueIndex)
+    if LoadedCells[cellDescription] and LoadedCells[cellDescription].data.objectData[uniqueIndex] and Players ~= nil then
         local refId = LoadedCells[cellDescription].data.objectData[uniqueIndex].refId
-        if special == "SNEAK" and LoadedCells[cellDescription]:GetVisitorCount() > 0 then
-            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "->ForceSneak", cellDescription, uniqueIndex, true)
-        elseif special == "RUN" and LoadedCells[cellDescription]:GetVisitorCount() > 0 then
-            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "->ForceRun", cellDescription, uniqueIndex, true)
-        elseif special == "JUMP" and LoadedCells[cellDescription]:GetVisitorCount() > 0 then -- Will there ever be a use for this? Probably not
-            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "->ForceMoveJump", cellDescription, uniqueIndex, true)
-        elseif special == "LEVITATE" then
-            -- TODO make a 5 pt levitate CE custom spell
+        logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority() or next(Players), "\"".. refId .. "\"->startscript schedule_clearMovementModifiers", cellDescription, uniqueIndex, true)
+    end
+end
+
+local function getDefaultModel(refId)
+    local record = dataFilesLoader.getRecord(refId, "Npc")
+    if record then 
+        local female = record.npc_flags % 2 == 1
+        local race = record.race
+        local raceRecord = dataFilesLoader.getRecord(race, "Race")
+        local beast = raceRecord and raceRecord.data.flags > 1 or false
+
+        if beast then return "base_animkna.nif" end
+        if female then return "base_anim_female.nif" end
+        
+    end
+    return "base_anim.nif"
+end
+
+local function setModel(cellDescription, uniqueIndex, model)
+    local refId = LoadedCells[cellDescription].data.objectData[uniqueIndex].refId
+    tes3mp.ClearRecords()
+    if dataFilesLoader.getRecord(refId, "Npc") then
+        tes3mp.SetRecordType(enumerations.recordType.NPC)
+    elseif dataFilesLoader.getRecord(refId, "Creature") then -- Useful if you want to play an animation on a biped creature
+        tes3mp.SetRecordType(enumerations.recordType.CREATURE)
+    end
+    tes3mp.SetRecordId(refId)
+    tes3mp.SetRecordBaseId(refId)
+    tes3mp.SetRecordModel(model or getDefaultModel(refId))
+
+    tes3mp.AddRecord()
+    tes3mp.SendRecordDynamic(next(Players), true)
+end
+
+local function setAnim(cellDescription, uniqueIndex, anim)
+    if LoadedCells[cellDescription] and LoadedCells[cellDescription].data.objectData[uniqueIndex] then
+        local refId = LoadedCells[cellDescription].data.objectData[uniqueIndex].refId
+
+        if anim then
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority() or next(Players), "\"".. refId .. "\"-> setHello 0", cellDescription, uniqueIndex, true)
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority() or next(Players), "\"".. refId .. "\"-> playgroup " .. anim .. " 0", cellDescription, uniqueIndex, true)
+        else
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority() or next(Players), "\"".. refId .. "\"-> setHello 25", cellDescription, uniqueIndex, true)
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority() or next(Players), "\""..refId .. "\"-> playgroup idle 1", cellDescription, uniqueIndex, true)
         end
     end
 end
 
-local function clearSpecialMovement(cellDescription, uniqueIndex)
-    -- TODO make a custom script to clear all movement modifiers
+local function applySpecialMovement(cellDescription, uniqueIndex, special)
+    if LoadedCells[cellDescription] and LoadedCells[cellDescription].data.objectData[uniqueIndex] and LoadedCells[cellDescription]:GetAuthority() then
+        local refId = LoadedCells[cellDescription].data.objectData[uniqueIndex].refId
+        if special == "SNEAK" then
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"->ForceSneak", cellDescription, uniqueIndex, true)
+        elseif special == "RUN" then
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"->ForceRun", cellDescription, uniqueIndex, true)
+        elseif special == "JUMP" then -- Will there ever be a use for this? Probably not
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"->ForceMoveJump", cellDescription, uniqueIndex, true)
+        elseif special == "LEVITATE" then
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"->AddSpell schedule_levitate", cellDescription, uniqueIndex, true)
+        end
+    end
 end
+
+
 
 local function safelySetActorAI(cellDescription, actorUniqueIndex, action, targetPid, targetUniqueIndex, posX, posY, posZ, distance, duration, shouldRepeat)
     if LoadedCells[cellDescription]:GetVisitorCount() > 0 then
@@ -544,6 +603,11 @@ local function moveNpcBetweenCells(cellDescription, uniqueIndex, newCellDescript
                     if originalCell.data.objectData[uniqueIndex] ~= nil then
                         originalCell.data.objectData[uniqueIndex].cellChangeTo = newCellDescription
                     end
+
+                    if newCell.data.customVariables == nil then newCell.data.customVariables = {} end
+                    if newCell.data.customVariables.npcScheduling == nil then newCell.data.customVariables.npcScheduling = {} end
+                    tableHelper.insertValueIfMissing(newCell.data.customVariables.npcScheduling, cell.description)
+                    tableHelper.insertValueIfMissing(cell.data.customVariables.npcScheduling, newCell.description)
                 end
 
             -- Otherwise, simply move this actor's data to the new cell and mark it as being moved there
@@ -641,17 +705,23 @@ local function moveNpcBetweenCells(cellDescription, uniqueIndex, newCellDescript
 
 end
 
-local function onCellChangeUpdate(cellDescription, refNum)
-    local cell = LoadedCells[cellDescription]
-    if cell.data.objectData[refNum] and not cell.data.objectData[refNum].deathState and tonumber(refNum:split("-")[1]) > 0 then
-        local refId = cell.data.objectData[refNum].refId
-        local targetHour = findCurrentScheduleEntry(refId)
 
-        if isFinished(refId, targetHour) then
-            -- play animations
-        elseif transitions[refId] then
-            -- run console command for special movement
+
+local function onCellChangeUpdate(cellDescription, refNum)
+    if special[cellDescription] and special[cellDescription][refNum] then
+        --local cell = LoadedCells[cellDescription]
+        local refId = LoadedCells[cellDescription].data.objectData[refNum].refId
+        --local targetHour = findCurrentScheduleEntry(refId)
+        if special[cellDescription][refNum].anim then
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"-> setHello 0", cellDescription, refNum, true)
+            logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"-> playgroup " .. special[cellDescription][refNum].anim .. " 0", cellDescription, refNum, true)
         end
+        if special[cellDescription][refNum].move then
+            applySpecialMovement(cellDescription, refNum, special[cellDescription][refNum].move)
+        else
+            clearSpecialMovement(cellDescription, refNum)
+        end
+    
     end
 end
 
@@ -707,13 +777,21 @@ local function updateNpc(cellDescription, refNum)
                             end
 
                             table.remove(transitions[refId], 1)
+                            if special[cellDescription] and special[cellDescription][refNum] and special[cellDescription][refNum].move then
+                                applySpecialMovement(newCellDescription, refNum, special[cellDescription][refNum].move)
+
+                                if special[newCellDescription] == nil then special[newCellDescription] = {} end
+                                special[newCellDescription][refNum] = special[cellDescription][refNum]
+                                special[cellDescription][refNum] = nil
+                            end
+
                             for i, entry in ipairs(moving) do
                                 if entry[2] == refNum then
                                     moving[i] = nil
                                 end
                             end
                             tableHelper.cleanNils(moving)
-
+                            setAnim(newCellDescription, refNum)
 
                             if transitions[refId][1] == nil then
                                 logMessage("--updateNpc BP 6a")
@@ -731,10 +809,12 @@ local function updateNpc(cellDescription, refNum)
                             end
                         else -- If in the same cell, just move to final destination; if not, set temporary destination near load door and move to that; if a load door can't be found, just teleport npc to target
                             
+                            if special[cellDescription] and special[cellDescription][refNum] then special[cellDescription][refNum].anim = nil end
                             local newCellDescription = targetTable.cell
                             
                             if ( not transitions[refId] ) or #transitions[refId] == 0  then 
                                 logMessage("--updateNpc BP 3b")
+                                --setModel(cellDescription, refNum) -- This will make NPCs duplicate!!!
                                 if ( string.match(newCellDescription, patterns.exteriorCell) and LoadedCells[cellDescription].isExterior ) or cellDescription == targetTable.cell then
                                     if LoadedCells[cellDescription]:GetVisitorCount() == 0 then
                                         cell.data.objectData[refNum].location = {
@@ -753,7 +833,9 @@ local function updateNpc(cellDescription, refNum)
                                     
                                     local loadDoorChain = findLoadDoorChain(cellDescription, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
                                     logMessage("loadDoorChain = " .. tableHelper.getSimplePrintableTable(loadDoorChain))
-                                    
+
+                                    --setModel(cellDescription, refNum) -- Also duplicates NPCs
+
                                     if loadDoorChain then
                                         transitions[refId] = {}
                                         logMessage("--updateNpc BP 5")
@@ -787,10 +869,20 @@ local function updateNpc(cellDescription, refNum)
                                         tableHelper.insertValueIfMissing(moving, {cellDescription, refNum})
                                         safelySetActorAI(cellDescription, refNum, enumerations.ai.TRAVEL, nil, nil, transitions[refId][1].posX, transitions[refId][1].posY, transitions[refId][1].posZ)
 
+                                        
+                                        setAnim(cellDescription, refNum)
+
                                     else -- no valid load door can be found, so just teleport npc to destination
                                         logMessage("--updateNpc BP 4b")
                                         moveNpcBetweenCells(cellDescription, refNum, newCellDescription, targetTable.posX, targetTable.posY, targetTable.posZ)
                                     end
+                                end
+
+                                if targetTable.move then
+                                    applySpecialMovement(cellDescription, refNum, targetTable.move)
+                                    
+                                    if special[cellDescription] == nil then special[cellDescription] = {} end
+                                    special[cellDescription][refNum] = {move = targetTable.move}
                                 end
                             end
                         end
@@ -808,23 +900,13 @@ local function updateNpc(cellDescription, refNum)
                         end
                         transitions[refId] = nil
                         tableHelper.cleanNils(moving)
+                        clearSpecialMovement(cellDescription, refNum)
+                        if special[cellDescription] and special[cellDescription][refNum] and special[cellDescription][refNum].move then special[cellDescription][refNum].move = nil end
 
                         if targetTable.final then
                             if targetTable.final.kind == "WANDER" then
                                 safelySetActorAI(cellDescription, refNum, enumerations.ai.WANDER, nil, nil, nil, nil, nil, targetTable.final.distance or 1024, 1)
                             elseif targetTable.final.kind == "ANIMATION" and targetTable.final.animGroup then
-                                tes3mp.ClearRecords()
-                                if dataFilesLoader.getRecord(refId, "Npc") then
-                                    tes3mp.SetRecordType(enumerations.recordType.NPC)
-                                elseif dataFilesLoader.getRecord(refId, "Creature") then -- Useful if you want to play an animation on a biped creature
-                                    tes3mp.SetRecordType(enumerations.recordType.CREATURE)
-                                end
-                                tes3mp.SetRecordId(refId)
-                                tes3mp.SetRecordBaseId(refId)
-                                tes3mp.SetRecordModel(targetTable.final.model)
-                                tes3mp.AddRecord()
-                                tes3mp.SendRecordDynamic(next(Players), true)
-                                
                                 if targetTable.final.posX or targetTable.final.posY or targetTable.final.posZ or targetTable.final.rotZ then
                                     LoadedCells[cellDescription].data.objectData[refNum].location = {
                                         posX = targetTable.final.posX,
@@ -838,14 +920,13 @@ local function updateNpc(cellDescription, refNum)
                                         LoadedCells[cellDescription]:LoadActorPositions(pid, LoadedCells[cellDescription].data.objectData, {refNum})
                                     end
                                 end
-
-                                safelySetActorAI(cellDescription, refNum, enumerations.ai.WANDER, nil, nil, nil, nil, nil, 0, 24)
                                
+                                if special[cellDescription] == nil then special[cellDescription] = {} end
+                                special[cellDescription][refNum] = {anim = targetTable.final.animGroup}
+                                
+                                setModel(cellDescription, refNum, targetTable.final.model)
                                 -- run animation for all players currently in cell, then add a cell change handler to load this stuff for players entering a cell
-                                if LoadedCells[cellDescription]:GetAuthority() then
-                                    logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> setHello 0", cellDescription, refNum, true)
-                                    logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> playgroup " .. targetTable.final.animGroup .. " 0", cellDescription, refNum, true)
-                                end
+                                setAnim(cellDescription, refNum, targetTable.final.animGroup)
 
                             end
                         end
@@ -912,6 +993,8 @@ local function onCellLoadHandler(eventStatus, pid, cellDescription)
             logMessage("running updateCellNpcs called by onCellLoadHandler")
             updateCellNpcs(cellDescription)
         end
+
+
     end
 end
 
@@ -929,21 +1012,62 @@ local function onGameHourHandler(eventStatus)
     end
 end
 
+customEventHooks.registerHandler("OnPlayerCellChange", function(eventStatus, pid, cellDescription) 
+    if special[cellDescription] then
+        logMessage("special["..cellDescription.."] = " .. tableHelper.getSimplePrintableTable(special[cellDescription]))
+        for _, refNum in pairs(special[cellDescription]) do
+            onCellChangeUpdate(cellDescription, refNum)
+        end
+    end
+end)
+
 customEventHooks.registerHandler("OnCellLoad", onCellLoadHandler)
 customEventHooks.registerHandler("OnActorList", onActorListHandler)
 customEventHooks.registerHandler("AotS_OnGameHour", onGameHourHandler)
 
 function NPC_Scheduling_Timer()
     for i, data in ipairs(moving) do
-        --if LoadedCells[data[1]] then
-            logMessage("updating moving npc " .. data[2] .. " in cell " .. data[1])
-            updateNpc(data[1], data[2])
-        --end
+        logMessage("updating moving npc " .. data[2] .. " in cell " .. data[1])
+        updateNpc(data[1], data[2])
     end
     tes3mp.RestartTimer(timerId, time.seconds(3))
 end
 
 customEventHooks.registerHandler("OnServerPostInit", function()
+    RecordStores["script"].data.permanentRecords["schedule_clearMovementModifiers"] = {
+        scriptText = [[
+            begin schedule_clearMovementModifiers
+
+            ClearForceSneak
+            ClearForceMoveJump
+            ClearForceRun
+
+            removeSpell schedule_levitate
+
+            stopscript schedule_clearMovementModifiers
+
+            end
+        ]]
+    }
+
+    RecordStores["spell"].data.permanentRecords["schedule_levitate"] = { -- For the Telvanni
+        name = "Levitate",
+        subtype = 1,
+        cost = 0,
+        effects = {
+            {
+            id = 10, -- levitation
+            attribute = -1, 
+            skill = -1,
+            rangeType = 0,
+            area = 0,
+            duration = 0,
+            magnitudeMax = 10,
+            magnitudeMin = 10
+            }
+        }
+    }
+
     timerId = tes3mp.CreateTimer("NPC_Scheduling_Timer", time.seconds(3))
     tes3mp.StartTimer(timerId)
 end)
