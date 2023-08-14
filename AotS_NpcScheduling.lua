@@ -1,133 +1,4 @@
-local config = {
-    ["dralosa athren"] = {
-        [6]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
-        },
-        [9] = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128
-        },
-        [11]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
-        },
-        [13] = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128
-        },
-        [18]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
-        },
-        [21] = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128
-        },
-        [1]  = {
-            cell = "-3, -2",
-            posX = -18651,
-            posY = -14572,
-            posZ = 198, 
-            final = {
-                kind = "ANIMATION",
-                model = "va_sitting.nif",
-                animGroup = "idle3"
-            }
-        },
-        [3] = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128
-        }
-    },
-    ["karlirah"] = {
-        [6]  = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128,
-            move = "RUN"
-        },
-        [9] = {
-            cell = "Balmora, Karlirah's House",
-            posX = 215,
-            posY = 20,
-            posZ = 28,
-            move = "SNEAK"
-        },
-        [11]  = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128,
-            move = "RUN"
-        },
-        [13] = {
-            cell = "Balmora, Karlirah's House",
-            posX = 215,
-            posY = 20,
-            posZ = 28,
-            move = "SNEAK"
-        },
-        [18]  = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128,
-            move = "RUN"
-        },
-        [21] = {
-            cell = "Balmora, Karlirah's House",
-            posX = 215,
-            posY = 20,
-            posZ = 28,
-            move = "SNEAK"
-        },
-        [1]  = {
-            cell = "Balmora, Dralosa Athren's House",
-            posX = 300,
-            posY = 75,
-            posZ = 128,
-            move = "RUN"
-        },
-        [3] = {
-            cell = "Balmora, Karlirah's House",
-            posX = 215,
-            posY = 20,
-            posZ = 28,
-            move = "SNEAK"
-        }
-    }
-}
+local config = {}
 
 local debugMode = true
 local timerId
@@ -138,6 +9,54 @@ local special = {}
 
 local maxRecursionDepth = 4
 local maxDistanceToLocation = 128
+
+-- Checks if the OS is a UNIX based one
+local isUNIX = function ()
+    return os.getenv("HOME") ~= nil
+end
+
+-- Gets a list of filenames in the root of the path
+local listDir = function(path)
+    local i, t = 0, {}
+    -- Windows users "UserProfile" ->
+    local list_command = isUNIX() and 'ls "'..path..'"' or 'dir "'..path..'" /b'
+    local pfile = io.popen(list_command)
+
+    -- Nil check
+    if pfile == nil then
+        return t
+    end
+
+    for filename in pfile:lines() do
+        i = i + 1
+        t[i] = filename
+    end
+    pfile:close()
+    return t
+end
+-- Credit to Orleleise for writing the above two functions
+
+local function loadConfig()
+    tes3mp.LogMessage(0, "Loading NPCScheduling config")
+    local fileList = listDir(tes3mp.GetDataPath() .. "\\custom\\npcScheduling")
+    if type(fileList) == "table" and #fileList > 0 then
+        config = {}
+        for _, fileName in pairs(fileList) do
+            if string.find(fileName, ".json") then
+                local json = jsonInterface.load("custom/npcScheduling/" .. fileName)
+                if json then 
+                    for index, value in pairs(json) do
+                        config[index] = {}
+                        for key, val in pairs(value) do -- Need to do this manually to ensure the hour indices are numbers not strings
+                           config[index][tonumber(key)] = val
+                        end
+                    end
+                end
+            end
+        end
+        tableHelper.print(config)
+    end
+end
 
 local function logMessage(message)
     local level = debugMode == true and 3 or 0
@@ -584,8 +503,6 @@ local function moveNpcBetweenCells(cellDescription, uniqueIndex, newCellDescript
                     newCell.data.objectData[uniqueIndex].cellChangeTo = nil
                     newCell.data.objectData[uniqueIndex].cellChangeFrom = nil
 
-
-
                 -- Otherwise, move its data to the new cell, delete it from the old cell, and update its
                 -- information in its original cell
                 else
@@ -708,9 +625,10 @@ end
 
 
 local function onCellChangeUpdate(cellDescription, refNum)
+    local refId = LoadedCells[cellDescription].data.objectData[refNum].refId
     if special[cellDescription] and special[cellDescription][refNum] then
         --local cell = LoadedCells[cellDescription]
-        local refId = LoadedCells[cellDescription].data.objectData[refNum].refId
+        
         --local targetHour = findCurrentScheduleEntry(refId)
         if special[cellDescription][refNum].anim then
             logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), "\"".. refId .. "\"-> setHello 0", cellDescription, refNum, true)
@@ -721,7 +639,8 @@ local function onCellChangeUpdate(cellDescription, refNum)
         else
             clearSpecialMovement(cellDescription, refNum)
         end
-    
+    else
+        logicHandler.RunConsoleCommandOnObject(LoadedCells[cellDescription]:GetAuthority(), refId .. "-> aiwander, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0", cellDescription, refNum, true)
     end
 end
 
@@ -914,7 +833,7 @@ local function updateNpc(cellDescription, refNum)
                                         posZ = targetTable.final.posZ,
                                         rotX = 0,
                                         rotY = 0,
-                                        rotZ = targetTable.final.rotZ or 0
+                                        rotZ = -math.rad(targetTable.final.rotZ) or 0
                                     }
                                     for _, pid in ipairs(LoadedCells[cellDescription].visitors) do
                                         LoadedCells[cellDescription]:LoadActorPositions(pid, LoadedCells[cellDescription].data.objectData, {refNum})
@@ -1034,6 +953,8 @@ function NPC_Scheduling_Timer()
 end
 
 customEventHooks.registerHandler("OnServerPostInit", function()
+    loadConfig()
+
     RecordStores["script"].data.permanentRecords["schedule_clearMovementModifiers"] = {
         scriptText = [[
             begin schedule_clearMovementModifiers
