@@ -92,10 +92,15 @@ end
 
 local function getTargetTable(refId, targetHour)
     if config[refId][targetHour].random then
-        local randomCount = #config[refId][targetHour].random
+        local tempTable = {}
+        for key, value in pairs(config[refId][targetHour].random) do
+            tempTable[#tempTable+1] = key
+            table.sort(tempTable) -- Ensure identical order each time this is run
+        end
+        local randomCount = #tempTable
         local count = WorldInstance.data.time.daysPassed
 
-        return config[refId][targetHour].random[math.fmod(count, randomCount) + 1] -- Not actually random in any way, but it will give a good effect
+        return config[refId][targetHour].random[tempTable[math.fmod(count, randomCount) + 1]] -- Not actually random in any way, but it will give a good effect
     else
         return config[refId][targetHour]
     end
